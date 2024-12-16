@@ -1,32 +1,28 @@
-import os
+from flask import Flask
+from .config import DevelopmentConfig, TestingConfig, ProductionConfig
+from .api import api
+from .utils.exceptions import NotFoundError
 
-from flask import (Flask, redirect, render_template, request,
-                   send_from_directory, url_for)
+def create_app(config_name=None):
+    """Creates and configures the Flask application."""
+    app = Flask(__name__)
 
-app = Flask(__name__)
+    if config_name == 'testing':
+        app.config.from_object(TestingConfig)
+    elif config_name == 'production':
+        app.config.from_object(ProductionConfig)
+    else:
+        app.config.from_object(DevelopmentConfig)
 
+    app.register_blueprint(api)
 
-@app.route('/')
-def index():
-   print('Request for index page received')
-   return render_template('index.html')
+    @app.errorhandler(NotFoundError)
+    def handle_not_found_error(error):
+        """Handles NotFoundError exceptions."""
+        return {'message': error.message}, 404
 
-@app.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(app.root_path, 'static'),
-                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
-
-@app.route('/hello', methods=['POST'])
-def hello():
-   name = request.form.get('name')
-
-   if name:
-       print('Request for hello page received with name=%s' % name)
-       return render_template('hello.html', name = name)
-   else:
-       print('Request for hello page received with no name or blank name -- redirecting')
-       return redirect(url_for('index'))
-
+    return app
 
 if __name__ == '__main__':
-   app.run()
+    app = create_app()
+    app.run(debug=True)
